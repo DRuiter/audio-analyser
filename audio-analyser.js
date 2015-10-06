@@ -1,17 +1,17 @@
 var EventEmitter 	= require("events").EventEmitter,
-	TimedBuffer		= require("./timed-buffer");
+		TimedBuffer		= require("./timed-buffer");
 
 function AudioAnalyser (timeMS){
 	var self = this;
 
+	EventEmitter.call(this);
+
 	if(!timeMS) timeMS = 500;
 
-	this.loudnessBuffer 	= new TimedBuffer(timeMS);
+	this.loudnessBuffer = new TimedBuffer(timeMS);
 	this.bandBuffer			= new TimedBuffer(timeMS);
 	this.bandBeats			= [];
-
 	this.lastSpike			= new Date().getTime();
-
 
 	this.analyse = function ( FFTSample ){
 		//Analysis
@@ -32,7 +32,7 @@ function AudioAnalyser (timeMS){
 				lowerTreble	: this.weightCheck(this.getFrequencyRange(FFTSample, 2000, 4000)),
 				midTreble	: this.weightCheck(this.getFrequencyRange(FFTSample, 4000, 8000)),
 				upperTreble	: this.weightCheck(this.getFrequencyRange(FFTSample, 8000, 16000))
-			}
+			};
 
 			//TEMP: DEBUG
 			this.emit('beats', beats);
@@ -42,7 +42,7 @@ function AudioAnalyser (timeMS){
 			this.isLoudnessSpike(loudness);
 			this.loudnessFactor(loudness);
 		}
-	}
+	};
 
 	this.checkBeats			= function (weightedBeats) {
 		for(var i in weightedBeats){
@@ -52,14 +52,14 @@ function AudioAnalyser (timeMS){
 				if(weight) this.emit(i, weightedBeats[i]);
 			}
 		}
-	}
+	};
 
 	this.loudnessFactor = function ( loudness ){
 		var min = Math.min.apply(Math, this.loudnessBuffer.getByTime(timeMS)),
 			max = Math.max.apply(Math, this.loudnessBuffer.getByTime(timeMS));
 
 		this.emit('loudnessFactor', this.range(min, max, loudness));
-	}
+	};
 
 	this.toBandSample	= function (FFTSample, bands){
 		var band, sample, value, bandSample = [];
@@ -68,29 +68,29 @@ function AudioAnalyser (timeMS){
 
 		bands.forEach(function (band){
 			sample = self.getFrequencyRange(FFTSample, band[0], band[1], true);
-			
+
 			if(sample.length){
 				value = sample.reduce(function (prev, cur, index, array){
 					if(index === array.length-1){
-						return {db: (prev.db+cur.db)/array.length}
+						return {db: (prev.db+cur.db)/array.length};
 					} else {
-						return {db: prev.db + cur.db}
+						return {db: prev.db + cur.db};
 					}
-				})
+				});
 
-				bandSample.push(value)
+				bandSample.push(value);
 			}
 		});
 
 		return bandSample;
-	}	
+	};
 
 	this.weightCheck		 = function ( FFTSegment ) {
 		var deviations	= 0;
 
 		FFTSegment.forEach(function (item){
 			if(item.db > item.mean+item.standardDeviation) deviations++;
-		})
+		});
 
 		if(deviations){
 			var weight = this.range(0, FFTSegment.length, deviations);
@@ -99,10 +99,12 @@ function AudioAnalyser (timeMS){
 		}
 
 		return false;
-	}
+	};
 
 	this.getFrequencyRange = function (FFTSample, start, end, freqRange){
-		if(freqRange == null) freqRange = false;
+		if(freqRange == null) {
+			freqRange = false;
+		}
 
 		return FFTSample.filter(function (item){
 			if(freqRange){
@@ -110,23 +112,26 @@ function AudioAnalyser (timeMS){
 			} else {
 				if(item.freq >= start && item.freq <= end) return item;
 			}
-		})
-	}
+		});
+	};
 
 	this.analyseBands = function(){
 		var bandBeats, totalBands = [], prev, next, peaks = [];
 
 		this.bandBuffer.buffer.forEach(function (bands, index){
 			bands.forEach(function (band, innerIndex){
-				if(totalBands[innerIndex] == null) totalBands[innerIndex] = [];
+				if(totalBands[innerIndex] == null) {
+					totalBands[innerIndex] = [];
+				}
+
 				totalBands[innerIndex].push(band.db);
-			})
-		})
+			});
+		});
 
 		bandBeats = totalBands.map(function (bands){
 			return bands.map(function (band, index, array){
 				if(array[index-1]){
-					if(band > array[index-1]) 
+					if(band > array[index-1])
 						return true;
 					else
 						return false;
@@ -134,8 +139,8 @@ function AudioAnalyser (timeMS){
 				} else {
 					return false;
 				}
-			})
-		})
+			});
+		});
 
 		bandBeats = bandBeats.map(function (bands){
 			return bands.map(function (band, index, array){
@@ -144,11 +149,11 @@ function AudioAnalyser (timeMS){
 				} else {
 					return band;
 				}
-			})
-		})
+			});
+		});
 
 		this.emit('bandBeats', bandBeats);
-	}
+	};
 
 	this.isLoudnessSpike = function( loudness ){
 		var buffer 		= this.loudnessBuffer.getByTime(timeMS),
@@ -175,18 +180,17 @@ function AudioAnalyser (timeMS){
 
 			this.emit('loudnessSpike', loudness);
 		}
-		
-	}
+	};
 
 	this.activeSample = function ( FFTSample ){
 		return FFTSample.filter(function ( FFTBin ){
 			if(FFTBin.db > FFTBin.standardDeviation+FFTBin.mean) return FFTBin;
-		})
-	}
+		});
+	};
 
 	this.range = function (min, max, value){
-	 	return (value-min)/(max-min)
-	}
+	 	return (value-min)/(max-min);
+	};
 
 	this.getLoudness = function ( FFTSample ){
 		if(!FFTSample.length) return false;
@@ -199,11 +203,13 @@ function AudioAnalyser (timeMS){
 				else
 					return item.db;
 			})
-			.reduce(function (prev, cur) {return (prev + cur*cur)});
+			.reduce(function (prev, cur) {
+				return (prev + cur*cur);
+			});
 
 		return Math.round(Math.sqrt(sumOfSqaures / FFTSample.length));
-	}
-	
+	};
+
 
 	return this;
 }
